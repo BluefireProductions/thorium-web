@@ -28,16 +28,18 @@ import { NavigatorProvider } from "@/core/Navigator";
 import {
   BasicTextSelection,
   ContextMenuEvent,
+  DecoratorRequest,
   FrameClickEvent,
+  Layout as DecorationLayout,
+  Width as DecorationWidth,
   SuspiciousActivityEvent
 } from "@readium/navigator-html-injectables";
 import { EpubNavigatorListeners, KeyboardPeripheralEventData } from "@readium/navigator";
 import { 
   Locator, 
-  Publication, 
   Layout
 } from "@readium/shared";
-import { PositionStorage, StatefulReaderProps } from "../Reader/StatefulReaderWrapper";
+import { StatefulReaderProps } from "../Reader/StatefulReaderWrapper";
 
 import { StatefulDockingWrapper } from "../Docking/StatefulDockingWrapper";
 import { StatefulReaderHeader } from "../StatefulReaderHeader";
@@ -103,7 +105,8 @@ export const StatefulReader = ({
   localDataKey,
   plugins,
   positionStorage,
-  containerRefSetter
+  containerRefSetter,
+  deepLinkLocatorParam
 }: StatefulReaderProps) => {
   const [pluginsRegistered, setPluginsRegistered] = useState(false);
 
@@ -125,13 +128,19 @@ export const StatefulReader = ({
   return (
     <>
       <ThPluginProvider>
-        <StatefulReaderInner publication={ publication } localDataKey={ localDataKey } positionStorage={ positionStorage } containerRefSetter={ containerRefSetter } />
+        <StatefulReaderInner
+          publication={ publication }
+          localDataKey={ localDataKey }
+          positionStorage={ positionStorage }
+          containerRefSetter={ containerRefSetter }
+          deepLinkLocatorParam={ deepLinkLocatorParam }
+        />
       </ThPluginProvider>
     </>
   );
 };
 
-const StatefulReaderInner = ({ publication, localDataKey, positionStorage, containerRefSetter }: { publication: Publication; localDataKey: string | null; positionStorage?: PositionStorage; containerRefSetter?: (el: Element | null) => void }) => {
+const StatefulReaderInner = ({ publication, localDataKey, positionStorage, containerRefSetter, deepLinkLocatorParam }: StatefulReaderProps) => {
   const { fxlActionKeys, fxlThemeKeys, reflowActionKeys, reflowThemeKeys } = useFilteredPreferenceKeys();
   const { preferences, getFontMetadata, getFontInjectables } = usePreferences();
   const { direction: uiDirection } = useLocale();
@@ -142,6 +151,7 @@ const StatefulReaderInner = ({ publication, localDataKey, positionStorage, conta
   
   const container = useRef<HTMLDivElement>(null);
   const arrowsWidth = useRef(2 * ((preferences.theming.arrow.size || 40) + (preferences.theming.arrow.offset || 0)));
+  const deepLinkHandled = useRef(false);
 
   const profile = useAppSelector(state => state.reader.profile);
   const isFXL = useAppSelector(state => state.publication.isFXL);
@@ -241,6 +251,7 @@ const StatefulReaderInner = ({ publication, localDataKey, positionStorage, conta
     goRight,
     goBackward,
     goForward,
+    go,
     navLayout,
     currentPositions,
     canGoBackward,
@@ -250,6 +261,27 @@ const StatefulReaderInner = ({ publication, localDataKey, positionStorage, conta
     getCframes,
     submitPreferences
   } = epubNavigator;
+
+  const highlightDeepLinkLocator = useCallback((locator: Locator) => {
+    const frames = getCframes();
+    if (!frames) return;
+
+    frames.forEach((frame) => {
+      frame?.msg?.send("decorate", {
+        group: "nyu-search",
+        action: "update",
+        decoration: {
+          id: "nyu-search",
+          locator,
+          style: {
+            tint: "#ffff00",
+            layout: DecorationLayout.Boxes,
+            width: DecorationWidth.Wrap
+          }
+        }
+      } satisfies DecoratorRequest);
+    });
+  }, [getCframes]);
 
   const { setLocalData, getLocalData, localData } = usePositionStorage(localDataKey, positionStorage);
 
@@ -541,6 +573,29 @@ const StatefulReaderInner = ({ publication, localDataKey, positionStorage, conta
     applyConstraint(arrowsOccupySpace ? arrowsWidth.current : 0)
       .catch(console.error);
   }, [arrowsOccupySpace, applyConstraint, navigatorReady]);
+
+  useEffect(() => {
+    if (!navigatorReady || !deepLinkLocatorParam || deepLinkHandled.current) return;
+
+    try {
+      const locatorData = JSON.parse(deepLinkLocatorParam);
+      const deepLinkLocator = Locator.deserialize(locatorData);
+
+      if (!deepLinkLocator) {
+        console.warn("PK deep link locator could not be deserialized", locatorData);
+        return;
+      }
+
+      deepLinkHandled.current = true;
+      console.log("PK stateful reader locator ready for go", deepLinkLocator);
+      go(deepLinkLocator, !reducedMotion, (ok) => {
+        console.log("PK deep link go callback", ok);
+        if (ok) highlightDeepLinkLocator(deepLinkLocator);
+      });
+    } catch (error) {
+      console.warn("PK failed to parse deep link locator", error);
+    }
+  }, [deepLinkLocatorParam, go, highlightDeepLinkLocator, navigatorReady, reducedMotion]);
 
   // Theme can also change on colorScheme change so
   // we have to handle this side-effect but we can’t

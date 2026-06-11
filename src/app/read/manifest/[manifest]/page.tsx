@@ -9,15 +9,35 @@ import { StatefulReaderWrapper } from "@/components/Reader/StatefulReaderWrapper
 import { ErrorHandler, ProcessedError } from "@/helpers/errorHandler";
 
 type Params = { manifest: string };
+type SearchParams = { [key: string]: string | string[] | undefined };
 
 type Props = {
   params: Promise<Params>;
+  searchParams: Promise<SearchParams>;
 };
 
-export default function ManifestPage({ params }: Props) {
+const firstParam = (value: string | string[] | undefined) => {
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const decodeLocatorParam = (locatorParam: string) => {
+  try {
+    return decodeURIComponent(locatorParam);
+  } catch {
+    return locatorParam;
+  }
+};
+
+export default function ManifestPage({ params, searchParams }: Props) {
   const [domainError, setDomainError] = useState<ProcessedError | null>(null);
   const isLoading = useAppSelector(state => state.reader.isLoading);
   const manifestUrl = use(params).manifest;
+  const locatorParam = firstParam(use(searchParams).locator);
+
+  useEffect(() => {
+    if (!locatorParam) return;
+    console.log("PK", decodeLocatorParam(locatorParam));
+  }, [locatorParam]);
 
   useEffect(() => {
     if (manifestUrl) {
@@ -64,6 +84,7 @@ export default function ManifestPage({ params }: Props) {
           publication={ publication }
           localDataKey={ localDataKey }
           isLoading={ isLoading || publicationLoading }
+          deepLinkLocatorParam={ locatorParam ? decodeLocatorParam(locatorParam) : undefined }
         />
       ) : null }
     </>
