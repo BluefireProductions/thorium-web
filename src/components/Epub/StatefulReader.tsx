@@ -106,7 +106,7 @@ export const StatefulReader = ({
   plugins,
   positionStorage,
   containerRefSetter,
-  deepLinkLocatorParam
+  deepLinkLocator
 }: StatefulReaderProps) => {
   const [pluginsRegistered, setPluginsRegistered] = useState(false);
 
@@ -133,14 +133,14 @@ export const StatefulReader = ({
           localDataKey={ localDataKey }
           positionStorage={ positionStorage }
           containerRefSetter={ containerRefSetter }
-          deepLinkLocatorParam={ deepLinkLocatorParam }
+          deepLinkLocator={ deepLinkLocator }
         />
       </ThPluginProvider>
     </>
   );
 };
 
-const StatefulReaderInner = ({ publication, localDataKey, positionStorage, containerRefSetter, deepLinkLocatorParam }: StatefulReaderProps) => {
+const StatefulReaderInner = ({ publication, localDataKey, positionStorage, containerRefSetter, deepLinkLocator }: StatefulReaderProps) => {
   const { fxlActionKeys, fxlThemeKeys, reflowActionKeys, reflowThemeKeys } = useFilteredPreferenceKeys();
   const { preferences, getFontMetadata, getFontInjectables } = usePreferences();
   const { direction: uiDirection } = useLocale();
@@ -575,27 +575,13 @@ const StatefulReaderInner = ({ publication, localDataKey, positionStorage, conta
   }, [arrowsOccupySpace, applyConstraint, navigatorReady]);
 
   useEffect(() => {
-    if (!navigatorReady || !deepLinkLocatorParam || deepLinkHandled.current) return;
+    if (!navigatorReady || !deepLinkLocator || deepLinkHandled.current) return;
 
-    try {
-      const locatorData = JSON.parse(deepLinkLocatorParam);
-      const deepLinkLocator = Locator.deserialize(locatorData);
-
-      if (!deepLinkLocator) {
-        console.warn("PK deep link locator could not be deserialized", locatorData);
-        return;
-      }
-
-      deepLinkHandled.current = true;
-      console.log("PK stateful reader locator ready for go", deepLinkLocator);
-      go(deepLinkLocator, !reducedMotion, (ok) => {
-        console.log("PK deep link go callback", ok);
-        if (ok) highlightDeepLinkLocator(deepLinkLocator);
-      });
-    } catch (error) {
-      console.warn("PK failed to parse deep link locator", error);
-    }
-  }, [deepLinkLocatorParam, go, highlightDeepLinkLocator, navigatorReady, reducedMotion]);
+    deepLinkHandled.current = true;
+    go(deepLinkLocator, !reducedMotion, (ok) => {
+      if (ok) highlightDeepLinkLocator(deepLinkLocator);
+    });
+  }, [deepLinkLocator, go, highlightDeepLinkLocator, navigatorReady, reducedMotion]);
 
   // Theme can also change on colorScheme change so
   // we have to handle this side-effect but we can’t

@@ -7,37 +7,21 @@ import { useAppSelector } from "@/lib/hooks";
 import { verifyManifestUrl } from "@/app/api/verify-manifest/verifyDomain";
 import { StatefulReaderWrapper } from "@/components/Reader/StatefulReaderWrapper";
 import { ErrorHandler, ProcessedError } from "@/helpers/errorHandler";
+import { parseDeepLinkLocator, QueryParamValue } from "@/helpers/deepLinkLocator";
 
 type Params = { manifest: string };
-type SearchParams = { [key: string]: string | string[] | undefined };
+type SearchParams = { [key: string]: QueryParamValue };
 
 type Props = {
   params: Promise<Params>;
   searchParams: Promise<SearchParams>;
 };
 
-const firstParam = (value: string | string[] | undefined) => {
-  return Array.isArray(value) ? value[0] : value;
-};
-
-const decodeLocatorParam = (locatorParam: string) => {
-  try {
-    return decodeURIComponent(locatorParam);
-  } catch {
-    return locatorParam;
-  }
-};
-
 export default function ManifestPage({ params, searchParams }: Props) {
   const [domainError, setDomainError] = useState<ProcessedError | null>(null);
   const isLoading = useAppSelector(state => state.reader.isLoading);
   const manifestUrl = use(params).manifest;
-  const locatorParam = firstParam(use(searchParams).locator);
-
-  useEffect(() => {
-    if (!locatorParam) return;
-    console.log("PK", decodeLocatorParam(locatorParam));
-  }, [locatorParam]);
+  const deepLinkLocator = parseDeepLinkLocator(use(searchParams).locator);
 
   useEffect(() => {
     if (manifestUrl) {
@@ -84,7 +68,7 @@ export default function ManifestPage({ params, searchParams }: Props) {
           publication={ publication }
           localDataKey={ localDataKey }
           isLoading={ isLoading || publicationLoading }
-          deepLinkLocatorParam={ locatorParam ? decodeLocatorParam(locatorParam) : undefined }
+          deepLinkLocator={ deepLinkLocator }
         />
       ) : null }
     </>

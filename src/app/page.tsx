@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PublicationGrid } from "@/components/Misc/PublicationGrid";
 import Image from "next/image";
+import { encodeDeepLinkLocator } from "@/helpers/deepLinkLocator";
 
 import { isManifestRouteEnabled } from "./ManifestRouteEnabled";
 
@@ -24,9 +25,25 @@ const childrenLiteratureSampleLocator = {
   }
 };
 
-const childrenLiteratureSampleLocatorParam = encodeURIComponent(
-  JSON.stringify(childrenLiteratureSampleLocator)
-);
+const childrenLiteratureSampleLocatorParam = encodeDeepLinkLocator(childrenLiteratureSampleLocator);
+
+const warConquestManifestUrl = encodeURIComponent("http://localhost:15080/OTc4MTQ3OTgxOTQ1NC5lcHVi/manifest.json");
+
+
+const warConquestSampleLocator = {
+  href: "ops/xhtml/chapter1.xhtml",
+  type: "application/xhtml+xml",
+  locations: {
+    progression: 0.75
+  },
+  text: {
+    after: "for example, wondered about a Jewish defense lawyer she observed",
+    before: "A newspaper correspondent from",
+    highlight: "Berlin"
+  }
+};
+
+const warConquestSampleLocatorParam = encodeDeepLinkLocator(warConquestSampleLocator);
 
 const books = [
   {
@@ -111,6 +128,13 @@ const onlineBooks = [
     cover: "/images/ChildrensLiterature.png",
     url: `/read/manifest/${ childrenLiteratureManifestUrl }?locator=${ childrenLiteratureSampleLocatorParam }`,
     rendition: "Reflowable EPUB"
+  },
+  {
+    title: "War Conquest and Catastrophe",
+    author: "NYU Press",
+    cover: "/images/ChildrensLiterature.png",
+    url: `/read/manifest/${ warConquestManifestUrl }?locator=${ warConquestSampleLocatorParam }&search=Berlin`,
+    rendition: "Deep Link Test"
   }
 ];
 
